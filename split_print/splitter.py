@@ -27,15 +27,17 @@ class PDFSplitter:
         input_path: str,
         output_path: str,
         page_height: float = A4_HEIGHT_PT,
+        page_width: float = A4_WIDTH_PT,
         overlap_mm: float = 0.0
     ) -> None:
         """
-        Split a PDF into pages of specified height.
+        Split a PDF into A4-sized pages, scaling down if necessary.
 
         Args:
             input_path: Path to input PDF file
             output_path: Path to output PDF file
             page_height: Target page height in points (default: A4 height)
+            page_width: Target page width in points (default: A4 width)
             overlap_mm: Overlap between pages in millimeters (default: 0)
 
         Raises:
@@ -58,56 +60,70 @@ class PDFSplitter:
         total_pages_created = 0
 
         self._log(f"Processing {len(reader.pages)} pages from input PDF")
+        self._log(f"Target page size: {page_width:.1f}pt × {page_height:.1f}pt (A4)")
 
         for page_num, page in enumerate(reader.pages, 1):
             # Get original page dimensions
             mediabox = page.mediabox
-            page_width = float(mediabox.width)
+            original_width = float(mediabox.width)
             original_height = float(mediabox.height)
 
-            self._log(f"Page {page_num}: {page_width:.1f}pt × {original_height:.1f}pt")
+            self._log(f"\nPage {page_num}: {original_width:.1f}pt × {original_height:.1f}pt")
+            self._log(f"  = {original_width/MM_TO_PT:.1f}mm × {original_height/MM_TO_PT:.1f}mm")
 
-            # Check if page needs splitting
-            if original_height <= page_height:
-                # Page fits within target height, add as-is
-                writer.add_page(page)
+            # Calculate scaling factor to fit within A4 width
+            scale_x = page_width / original_width
+            scale_y = 1.0  # We'll handle height by splitting
+
+            # Use the smaller scale to ensure it fits
+            scale_factor = min(scale_x, 1.0)
+
+            scaled_width = original_width * scale_factor
+            scaled_height = original_height * scale_factor
+
+            if scale_factor < 1.0:
+                self._log(f"  → Scaling to {scale_factor:.2%} to fit A4 width")
+                self._log(f"  → Scaled size: {scaled_width:.1f}pt × {scaled_height:.1f}pt")
+                self._log(f"    = {scaled_width/MM_TO_PT:.1f}mm × {scaled_height/MM_TO_PT:.1f}mm")
+
+            # Calculate number of vertical splits needed
+            num_splits = math.ceil(scaled_height / page_height)
+            self._log(f"  → Splitting into {num_splits} page(s)")
+
+            for split_index in range(num_splits):
+                # Calculate the vertical section in scaled coordinates
+                top_y_scaled = scaled_height - (split_index * page_height)
+                bottom_y_scaled = max(0, scaled_height - ((split_index + 1) * page_height) - overlap_pt)
+                section_height_scaled = top_y_scaled - bottom_y_scaled
+
+                # Convert back to original coordinates
+                top_y_orig = top_y_scaled / scale_factor
+                bottom_y_orig = bottom_y_scaled / scale_factor
+
+                # Create output page
+                output_page = PageObject.create_blank_page(
+                    width=scaled_width,
+                    height=section_height_scaled
+                )
+
+                # Copy the original page
+                output_page.merge_page(page)
+
+                # Crop to the section (in original coordinates)
+                output_page.mediabox.lower_left = (0, bottom_y_orig)
+                output_page.mediabox.upper_right = (original_width, top_y_orig)
+
+                # Scale down if needed
+                if scale_factor < 1.0:
+                    output_page.scale_by(scale_factor)
+
+                writer.add_page(output_page)
                 total_pages_created += 1
-                self._log(f"  → Added as single page (fits within {page_height:.1f}pt)")
-            else:
-                # Calculate number of splits needed
-                num_splits = math.ceil(original_height / page_height)
-                self._log(f"  → Splitting into {num_splits} pages")
 
-                for split_index in range(num_splits):
-                    # Calculate crop boundaries
-                    # PDF coordinates: origin at bottom-left, y-axis points up
-                    lower_y = original_height - ((split_index + 1) * page_height) - overlap_pt
-                    upper_y = original_height - (split_index * page_height)
-
-                    # Ensure we don't go below the page bottom
-                    lower_y = max(0, lower_y)
-
-                    # Create a new page with the cropped content
-                    new_page = PageObject.create_blank_page(
-                        width=page_width,
-                        height=min(page_height, upper_y - lower_y)
-                    )
-
-                    # Copy content from original page
-                    new_page.merge_page(page)
-
-                    # Crop to the desired section
-                    new_page.mediabox.lower_left = (0, lower_y)
-                    new_page.mediabox.upper_right = (page_width, upper_y)
-
-                    writer.add_page(new_page)
-                    total_pages_created += 1
-
-                    actual_height = upper_y - lower_y
-                    self._log(f"    Split {split_index + 1}/{num_splits}: y={lower_y:.1f} to {upper_y:.1f} (height={actual_height:.1f}pt)")
+                self._log(f"    Page {split_index + 1}/{num_splits}: {scaled_width:.1f}pt × {section_height_scaled:.1f}pt")
 
         # Write output PDF
-        self._log(f"Writing output to: {output_path}")
+        self._log(f"\nWriting output to: {output_path}")
         self._log(f"Total pages created: {total_pages_created}")
 
         with open(output_path, 'wb') as output_file:
