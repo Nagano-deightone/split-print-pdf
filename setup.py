@@ -27,6 +27,7 @@ setup(
     entry_points={
         "console_scripts": [
             "split-print=split_print.cli:main",
+            "batch-split-print=split_print.batch_cli:main",
         ],
     },
     classifiers=[

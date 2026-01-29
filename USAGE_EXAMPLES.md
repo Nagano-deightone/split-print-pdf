@@ -62,6 +62,75 @@ split-print long-document.pdf -v
 split-print long-document.pdf --overlap 5
 ```
 
+## 一括処理の例
+
+### 基本的な一括処理
+
+```bash
+# 複数のファイルを個別に指定
+batch-split-print file1.pdf file2.pdf file3.pdf
+
+# ワイルドカードで一括指定
+batch-split-print *.pdf
+
+# 特定のフォルダ内の全PDF
+batch-split-print ~/Downloads/*.pdf
+```
+
+### 出力先を指定した一括処理
+
+```bash
+# 出力を別フォルダに保存
+batch-split-print ~/Downloads/*.pdf -o ~/Desktop/split-output/
+
+# 詳細ログ付き
+batch-split-print *.pdf -o ./output/ -v
+```
+
+### エラー処理
+
+```bash
+# エラーが出ても続行（デフォルトは最初のエラーで停止）
+batch-split-print *.pdf --continue-on-error
+
+# エラー時も詳細ログを表示
+batch-split-print *.pdf --continue-on-error -v
+```
+
+### プログレス表示付き処理
+
+```bash
+# verbose モードで各ファイルの処理状況を表示
+batch-split-print file1.pdf file2.pdf file3.pdf -v
+```
+
+出力例：
+```
+Processing 3 file(s)...
+
+[1/3] Processing: file1.pdf
+[INFO] Reading PDF: file1.pdf
+[INFO] Processing 1 pages from input PDF
+[INFO] Page 1: 595.3pt × 2525.7pt
+[INFO]   → Splitting into 3 pages
+[INFO] Writing output to: file1_split.pdf
+[INFO] Total pages created: 3
+[INFO] Done!
+  ✓ Success: file1_split.pdf
+
+[2/3] Processing: file2.pdf
+...
+
+==================================================
+SUMMARY
+==================================================
+Total files: 3
+Successful:  3
+Failed:      0
+
+✓ All files processed successfully!
+```
+
 ## 実践例
 
 ### ウェブページをPDFにして分割
@@ -72,13 +141,21 @@ split-print long-document.pdf --overlap 5
 split-print webpage.pdf -o webpage-printable.pdf -v
 ```
 
-### 複数のPDFを一括処理
+### ダウンロードフォルダのPDFを一括で処理
 
 ```bash
-# Bashのforループを使用
-for pdf in *.pdf; do
-  split-print "$pdf" -o "printable_${pdf}"
-done
+# ダウンロードフォルダの全PDFをデスクトップに出力
+batch-split-print ~/Downloads/*.pdf -o ~/Desktop/printable-pdfs/
+```
+
+### 特定のパターンに一致するファイルのみ処理
+
+```bash
+# "report"という名前を含むPDFのみ処理
+batch-split-print report*.pdf -v
+
+# 複数のパターンを組み合わせる場合はBashの機能を使用
+batch-split-print {report,document,invoice}*.pdf
 ```
 
 ### Pythonスクリプトから使用

@@ -8,6 +8,8 @@
 - 🖨️ 印刷しやすい標準サイズに変換
 - 🔧 シンプルで使いやすいCLIインターフェース
 - 🔄 オプションでページ間のオーバーラップ設定可能
+- 📦 複数ファイルの一括処理に対応
+- 📊 処理結果のサマリー表示
 
 ## インストール
 
@@ -31,13 +33,26 @@ pip install .
 
 ## 使い方
 
-### 基本的な使い方
+### 単一ファイルの処理
 
 ```bash
 split-print input.pdf
 ```
 
 これにより、`input_split.pdf` という名前で分割されたPDFが作成されます。
+
+### 複数ファイルの一括処理
+
+```bash
+# 複数のファイルを指定
+batch-split-print file1.pdf file2.pdf file3.pdf
+
+# ワイルドカード使用
+batch-split-print ~/Downloads/*.pdf
+
+# 出力先フォルダを指定
+batch-split-print *.pdf -o ~/Desktop/output/
+```
 
 ### 出力ファイル名を指定
 
@@ -67,12 +82,25 @@ split-print --help
 
 ## コマンドラインオプション
 
+### split-print（単一ファイル処理）
+
 | オプション | 説明 |
 |-----------|------|
 | `INPUT_FILE` | 分割する入力PDFファイル（必須） |
 | `-o, --output PATH` | 出力ファイルのパス（デフォルト: `{input}_split.pdf`） |
 | `--overlap FLOAT` | ページ間のオーバーラップ（mm単位、デフォルト: 0） |
 | `-v, --verbose` | 詳細ログを表示 |
+| `--help` | ヘルプメッセージを表示 |
+
+### batch-split-print（一括処理）
+
+| オプション | 説明 |
+|-----------|------|
+| `INPUT_FILES...` | 分割する入力PDFファイル（複数指定可能） |
+| `-o, --output-dir PATH` | 出力ディレクトリ（デフォルト: 入力ファイルと同じ場所） |
+| `--overlap FLOAT` | ページ間のオーバーラップ（mm単位、デフォルト: 0） |
+| `-v, --verbose` | 詳細ログを表示 |
+| `--continue-on-error` | エラーが発生しても処理を続行 |
 | `--help` | ヘルプメッセージを表示 |
 
 ## 動作原理
